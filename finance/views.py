@@ -105,7 +105,7 @@ class ReceiptView(generics.GenericAPIView):
     def put(self, request, *args, **kwargs):
         self.serializer_class = ReceiptPutSerializer
         try:
-            receipt = Receipt.objects.get(id=request.data.get('id'))
+            receipt = Receipt.objects.get(receipt_number=request.data.get('receipt_number'))
         except Receipt.DoesNotExist:
             return Response({"error": "Receipt not found"}, status=404)
         serializer = self.get_serializer(receipt, data=request.data, partial=True)
