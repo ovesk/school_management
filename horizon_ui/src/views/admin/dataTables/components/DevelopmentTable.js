@@ -31,10 +31,13 @@ import {
 // Custom components
 import Card from 'components/card/Card';
 import Menu from 'components/menu/MainMenu';
+import "datatables.net-dt/css/dataTables.dataTables.min.css";
+import "datatables.net";
+import $ from "jquery";
 // import { AndroidLogo, AppleLogo, WindowsLogo } from 'components/icons/Icons';
 import * as React from 'react';
 import axios from 'axios';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 // Assets
 
 const columnHelper = createColumnHelper();
@@ -48,217 +51,233 @@ export default function ComplexTable(props) {
   const borderColor = useColorModeValue('gray.200', 'whiteAlpha.100');
   const [data, setData] = useState([]); // State to hold API data
   const [error, setError] = useState(null);
-  const [nextPage, setNextPage] = useState(null);
-  const [prevPage, setPrevPage] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
-
-  // Paginaion
-  // const [currentPage, setcurrentPage] = useState(1);
-  // const recordsPerPage = 5;
-  // const lastIndex = currentPage * recordsPerPage;
-  // const firstIndex = lastIndex - recordsPerPage;
-  // const records = data.slice(firstIndex, lastIndex);
-  // const npage = Math.ceil(data.length / recordsPerPage);
-  // const numbers = [...Array(npage + 1).keys()].slice(1);
+  const [tableData, setTableData] = useState([]); // Holds API data
+  const tableRef = useRef(null);
 
   useEffect(() => {
-    // Fetch data from the API
-    axios
-      .get('http://127.0.0.1:8000/api/finance/receipt/') 
-      .then((response) => {
-        console.log(response.data.results); 
-        setData(response.data.results); 
-        setNextPage(response.data.next);
-        setPrevPage(response.data.previous);
-      })
-      .catch((err) => {
-        console.error(err); 
-        setError('Failed to fetch data'); 
-      });
-  }, []);
+    const fetchAllData = async () => {
+        let allResults = [];
+        let url = "http://127.0.0.1:8000/api/finance/receipt/";
+        
+        try {
+            while (url) {
+                const response = await axios.get(url);
+                allResults = [...allResults, ...response.data.results]; 
+                url = response.data.next; 
+            }
+            setTableData(allResults); 
+        } catch (error) {
+            console.error("Error fetching data:", error);
+            setError("Failed to fetch data");
+        }
+    };
 
-  console.log(data);
+    fetchAllData();
+}, []);
+
+
+
+  // console.log(data);
+  useEffect(() => {
+    if (tableData.length > 0 && tableRef.current) {
+        if ($.fn.DataTable.isDataTable(tableRef.current)) {
+            $(tableRef.current).DataTable().destroy(); 
+        }
+
+        $(tableRef.current).DataTable({
+            order: [[2, 'desc']],
+            paging: true,
+            searching: true,
+            ordering: true,
+            responsive: true,
+            pageLength: 10, 
+            lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "All"]]
+        });
+    }
+}, [tableData]);
+
   
-  const handleNext = () => {
-    if (nextPage) {
-        axios
-            .get(nextPage)
-            .then((response) => {
-                console.log(response.data.results);
-                setData(response.data.results);
-                setNextPage(response.data.next);
-                setPrevPage(response.data.previous);
-                setCurrentPage((prev) => prev + 1);
-            })
-            .catch((err) => {
-                console.error(err);
-                setError('Failed to fetch data');
-            });
-    }
-};
+//   const handleNext = () => {
+//     if (nextPage) {
+//         axios
+//             .get(nextPage)
+//             .then((response) => {
+//                 console.log(response.data.results);
+//                 setData(response.data.results);
+//                 setNextPage(response.data.next);
+//                 setPrevPage(response.data.previous);
+//                 setCurrentPage((prev) => prev + 1);
+//             })
+//             .catch((err) => {
+//                 console.error(err);
+//                 setError('Failed to fetch data');
+//             });
+//     }
+// };
 
-  const handlePrev = () => {
-    if (prevPage) {
-        axios
-            .get(prevPage)
-            .then((response) => {
-                console.log(response.data.results);
-                setData(response.data.results);
-                setNextPage(response.data.next);
-                setPrevPage(response.data.previous);
-                setCurrentPage((prev) => prev - 1);
-            })
-            .catch((err) => {
-                console.error(err);
-                setError('Failed to fetch data');
-            });
-    }
-};
+//   const handlePrev = () => {
+//     if (prevPage) {
+//         axios
+//             .get(prevPage)
+//             .then((response) => {
+//                 console.log(response.data.results);
+//                 setData(response.data.results);
+//                 setNextPage(response.data.next);
+//                 setPrevPage(response.data.previous);
+//                 setCurrentPage((prev) => prev - 1);
+//             })
+//             .catch((err) => {
+//                 console.error(err);
+//                 setError('Failed to fetch data');
+//             });
+//     }
+// };
 
   // let defaultData = tableData;
-  const columns = [
-    columnHelper.accessor('recipient_name', {
-      id: 'recipient_name',
-      header: () => (
-        <Text
-          justifyContent="space-between"
-          align="center"
-          fontSize={{ sm: '10px', lg: '12px' }}
-          color="gray.400"
-        >
-          NAME
-        </Text>
-      ),
-      cell: (info) => (
-        <Flex align="center">
-          <Text color={textColor} fontSize="sm" fontWeight="700">
-            {info.getValue()}
-          </Text>
-        </Flex>
-      ),
-    }),
-    columnHelper.accessor('amount', {
-      id: 'amount',
-      header: () => (
-        <Text
-          justifyContent="space-between"
-          align="center"
-          fontSize={{ sm: '10px', lg: '12px' }}
-          color="gray.400"
-        >
-          Amount
-        </Text>
-      ),
-      cell: (info) => (
-        <Flex align="center">
-          <Text color={textColor} fontSize="sm" fontWeight="700">
-            {info.getValue()}
-          </Text>
-        </Flex>
-      ),
-    }),
-    columnHelper.accessor('transaction_date', {
-      id: 'transaction_date',
-      header: () => (
-        <Text
-          justifyContent="space-between"
-          align="center"
-          fontSize={{ sm: '10px', lg: '12px' }}
-          color="gray.400"
-        >
-          Date of Transaction
-        </Text>
-      ),
-      cell: (info) => (
-        <Text color={textColor} fontSize="sm" fontWeight="700">
-          {info.getValue()}
-        </Text>
-      ),
-    }),
-    columnHelper.accessor('billing_address', {
-      id: 'billing_address',
-      header: () => (
-        <Text
-          justifyContent="space-between"
-          align="center"
-          fontSize={{ sm: '10px', lg: '12px' }}
-          color="gray.400"
-        >
-          Billing Address
-        </Text>
-      ),
-      cell: (info) => (
-        <Flex align="center">
-          <Text me="10px" color={textColor} fontSize="sm" fontWeight="700">
-            {info.getValue()}
-          </Text>
-        </Flex>
-      ),
-    }),
-    columnHelper.accessor('description', {
-      id: 'description',
-      header: () => (
-        <Text
-          justifyContent="space-between"
-          align="center"
-          fontSize={{ sm: '10px', lg: '12px' }}
-          color="gray.400"
-        >
-          Description
-        </Text>
-      ),
-      cell: (info) => (
-        <Flex align="center">
-          <Text me="10px" color={textColor} fontSize="sm" fontWeight="700">
-            {info.getValue()} 
-          </Text>
-        </Flex>
-      ),
-    }),
-    columnHelper.accessor('organization', {
-      id: 'organization',
-      header: () => (
-        <Text
-          justifyContent="space-between"
-          align="center"
-          fontSize={{ sm: '10px', lg: '12px' }}
-          color="gray.400"
-        >
-          Organization
-        </Text>
-      ),
-      cell: (info) => (
-        <Flex align="center">
-          <Text me="10px" color={textColor} fontSize="sm" fontWeight="700">
-            {info.getValue()}
-          </Text>
-        </Flex>
-      ),
-    }),
-  ];
+  // const columns = [
+  //   columnHelper.accessor('recipient_name', {
+  //     id: 'recipient_name',
+  //     header: () => (
+  //       <Text
+  //         justifyContent="space-between"
+  //         align="center"
+  //         fontSize={{ sm: '10px', lg: '12px' }}
+  //         color="gray.400"
+  //       >
+  //         NAME
+  //       </Text>
+  //     ),
+  //     cell: (info) => (
+  //       <Flex align="center">
+  //         <Text color={textColor} fontSize="sm" fontWeight="700">
+  //           {info.getValue()}
+  //         </Text>
+  //       </Flex>
+  //     ),
+  //   }),
+  //   columnHelper.accessor('amount', {
+  //     id: 'amount',
+  //     header: () => (
+  //       <Text
+  //         justifyContent="space-between"
+  //         align="center"
+  //         fontSize={{ sm: '10px', lg: '12px' }}
+  //         color="gray.400"
+  //       >
+  //         Amount
+  //       </Text>
+  //     ),
+  //     cell: (info) => (
+  //       <Flex align="center">
+  //         <Text color={textColor} fontSize="sm" fontWeight="700">
+  //           {info.getValue()}
+  //         </Text>
+  //       </Flex>
+  //     ),
+  //   }),
+  //   columnHelper.accessor('transaction_date', {
+  //     id: 'transaction_date',
+  //     header: () => (
+  //       <Text
+  //         justifyContent="space-between"
+  //         align="center"
+  //         fontSize={{ sm: '10px', lg: '12px' }}
+  //         color="gray.400"
+  //       >
+  //         Date of Transaction
+  //       </Text>
+  //     ),
+  //     cell: (info) => (
+  //       <Text color={textColor} fontSize="sm" fontWeight="700">
+  //         {info.getValue()}
+  //       </Text>
+  //     ),
+  //   }),
+  //   columnHelper.accessor('billing_address', {
+  //     id: 'billing_address',
+  //     header: () => (
+  //       <Text
+  //         justifyContent="space-between"
+  //         align="center"
+  //         fontSize={{ sm: '10px', lg: '12px' }}
+  //         color="gray.400"
+  //       >
+  //         Billing Address
+  //       </Text>
+  //     ),
+  //     cell: (info) => (
+  //       <Flex align="center">
+  //         <Text me="10px" color={textColor} fontSize="sm" fontWeight="700">
+  //           {info.getValue()}
+  //         </Text>
+  //       </Flex>
+  //     ),
+  //   }),
+  //   columnHelper.accessor('description', {
+  //     id: 'description',
+  //     header: () => (
+  //       <Text
+  //         justifyContent="space-between"
+  //         align="center"
+  //         fontSize={{ sm: '10px', lg: '12px' }}
+  //         color="gray.400"
+  //       >
+  //         Description
+  //       </Text>
+  //     ),
+  //     cell: (info) => (
+  //       <Flex align="center">
+  //         <Text me="10px" color={textColor} fontSize="sm" fontWeight="700">
+  //           {info.getValue()} 
+  //         </Text>
+  //       </Flex>
+  //     ),
+  //   }),
+  //   columnHelper.accessor('organization', {
+  //     id: 'organization',
+  //     header: () => (
+  //       <Text
+  //         justifyContent="space-between"
+  //         align="center"
+  //         fontSize={{ sm: '10px', lg: '12px' }}
+  //         color="gray.400"
+  //       >
+  //         Organization
+  //       </Text>
+  //     ),
+  //     cell: (info) => (
+  //       <Flex align="center">
+  //         <Text me="10px" color={textColor} fontSize="sm" fontWeight="700">
+  //           {info.getValue()}
+  //         </Text>
+  //       </Flex>
+  //     ),
+  //   }),
+  // ];
   // const [data, setData] = React.useState(() => [...defaultData]);
-  const table = useReactTable({
-    data,
-    columns,
-    state: {
-      sorting,
-    },
-    onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    debugTable: true,
-  });
+  // const table = useReactTable({
+  //   data,
+  //   columns,
+  //   state: {
+  //     sorting,
+  //   },
+  //   onSortingChange: setSorting,
+  //   getCoreRowModel: getCoreRowModel(),
+  //   getSortedRowModel: getSortedRowModel(),
+  //   debugTable: true,
+  // });
 
-  if (error) {
-    return <Text color="red">Error: {error}</Text>;
-  }
+  // if (error) {
+  //   return <Text color="red">Error: {error}</Text>;
+  // }
 
-  if (data.length === 0) {
-    return <Text>No data available</Text>;
-  }
+  // if (data.length === 0) {
+  //   return <Text>No data available</Text>;
+  // }
 
   return (
-    <><Card
+    <>
+    <Card
       flexDirection="column"
       w="200%"
       px="0px"
@@ -275,8 +294,10 @@ export default function ComplexTable(props) {
         </Text>
         <Menu />
       </Flex>
-      <Box>
-        <Table variant="simple" color="gray.500" mb="24px" mt="12px">
+      <Box
+      m="3"
+      >
+        {/* <Table variant="simple" color="gray.500" mb="24px" mt="12px">
           <Thead>
             {table.getHeaderGroups().map((headerGroup) => (
               <Tr key={headerGroup.id}>
@@ -337,9 +358,33 @@ export default function ComplexTable(props) {
                 );
               })}
           </Tbody>
-        </Table>
+        </Table> */}
+        <table ref={tableRef} className="display">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Amount</th>
+              <th>Transaction Date</th>
+              <th>Billing Address</th>
+              <th>Description</th>
+              <th>Organization</th>
+            </tr>
+          </thead>
+          <tbody>
+            {tableData.map((user) => (
+              <tr key={user.id}>
+                <td>{user.recipient_name}</td>
+                <td>{user.amount}</td>
+                <td>{user.transaction_date}</td>
+                <td>{user.billing_address}</td>
+                <td>{user.description}</td>
+                <td>{user.organization}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
     {/* Pagination Controls */}
-    <div style={{ marginTop: "10px", textAlign: "center" }}>
+    {/* <div style={{ marginTop: "10px", textAlign: "center" }}>
                 <div style={{}}>
                   <button onClick={handlePrev} disabled={!prevPage}>
                     Prev
@@ -349,7 +394,7 @@ export default function ComplexTable(props) {
                     Next
                 </button>
                 </div>
-            </div>
+            </div> */}
       </Box>
     </Card>
       </>
