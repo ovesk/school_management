@@ -43,6 +43,7 @@ const ReceiptForm = () => {
       while (nextPage) {
         const response = await axios.get(nextPage);
         allRecipients = [...allRecipients, ...response.data.results];
+        console.log(response);
         nextPage = response.data.next; 
       }
       setRecipients(allRecipients);
